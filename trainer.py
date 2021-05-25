@@ -9,6 +9,12 @@ import torch.distributed as dist
 import torchvision.utils as vutils
 from torch.utils.data import DataLoader
 
+from etaprogress.progress import ProgressBar
+from colorama import init
+from colorama import Fore, Style
+from utils.visualize_utils import visualize_tensor, visualize_run
+from icecream import ic
+
 import models
 import utils
 import datasets
@@ -26,35 +32,12 @@ class Trainer(object):
 
         if self.rank == 0:
             # mkdir path
-            if not os.path.exists('{}/events'.format(args.exp_path)):
-                os.makedirs('{}/events'.format(args.exp_path))
-            if not os.path.exists('{}/images'.format(args.exp_path)):
-                os.makedirs('{}/images'.format(args.exp_path))
-            if not os.path.exists('{}/logs'.format(args.exp_path)):
-                os.makedirs('{}/logs'.format(args.exp_path))
+            if not os.path.exists('visualizations/runs/train'):
+                os.makedirs('visualizations/runs/train')
+            if not os.path.exists('visualizations/runs/val'):
+                os.makedirs('visualizations/runs/val')
             if not os.path.exists('{}/checkpoints'.format(args.exp_path)):
                 os.makedirs('{}/checkpoints'.format(args.exp_path))
-
-            # logger
-            if args.trainer['tensorboard']:
-                try:
-                    from tensorboardX import SummaryWriter
-                except:
-                    raise Exception("Please switch off \"tensorboard\" "
-                                    "in your config file if you do not "
-                                    "want to use it, otherwise install it.")
-                self.tb_logger = SummaryWriter('{}/events'.format(
-                    args.exp_path))
-            else:
-                self.tb_logger = None
-            if args.validate:
-                self.logger = utils.create_logger(
-                    'global_logger',
-                    '{}/logs/log_offline_val.txt'.format(args.exp_path))
-            else:
-                self.logger = utils.create_logger(
-                    'global_logger',
-                    '{}/logs/log_train.txt'.format(args.exp_path))
 
         # create model
         self.model = models.__dict__[args.model['algo']](
@@ -145,6 +128,7 @@ class Trainer(object):
 
             self.model.set_input(*inputs)
             loss_dict = self.model.step()
+
             for k in loss_dict.keys():
                 recorder[k].update(utils.reduce_tensors(loss_dict[k]).item())
 
@@ -157,24 +141,20 @@ class Trainer(object):
             if self.rank == 0 and self.curr_step % self.args.trainer[
                     'print_freq'] == 0:
                 loss_str = ""
-                if self.tb_logger is not None:
-                    self.tb_logger.add_scalar('lr', curr_lr, self.curr_step)
+                
                 for k in recorder.keys():
-                    if self.tb_logger is not None:
-                        self.tb_logger.add_scalar('train_{}'.format(k),
-                                                  recorder[k].avg,
-                                                  self.curr_step)
                     loss_str += '{}: {loss.val:.4g} ({loss.avg:.4g})\t'.format(
                         k, loss=recorder[k])
-
-                self.logger.info(
-                    'Iter: [{0}/{1}]\t'.format(self.curr_step,
-                                               len(self.train_loader)) +
+                
+                    description = 'Iter: [{0}/{1}]\t'.format(self.curr_step,
+                                               len(self.train_loader)) + \
                     'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'.format(
-                        batch_time=btime_rec) +
+                        batch_time=btime_rec) + \
                     'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'.format(
-                        data_time=dtime_rec) + loss_str +
-                    'lr {lr:.2g}'.format(lr=curr_lr))
+                        data_time=dtime_rec) + loss_str + \
+                    'lr {lr:.2g}'.format(lr=curr_lr)
+                    ic(description)
+                    
 
             # save
             if (self.rank == 0 and
@@ -232,29 +212,22 @@ class Trainer(object):
                                             normalize=True,
                                             range=(0, 255),
                                             scale_each=False)
-                    if self.tb_logger is not None:
-                        self.tb_logger.add_image('Image_' + phase, grid,
-                                                 self.curr_step)
-                    cv2.imwrite("{}/images/{}_{}.png".format(
-                        self.args.exp_path, phase, self.curr_step),
+                    cv2.imwrite("visualizations/runs/val/{}_{}.png".format(
+                        phase, self.curr_step),
                         grid.permute(1, 2, 0).numpy())
 
         # logging
         if self.rank == 0:
             loss_str = ""
             for k in recorder.keys():
-                if self.tb_logger is not None and phase == 'on_val':
-                    self.tb_logger.add_scalar('val_{}'.format(k),
-                                              recorder[k].avg,
-                                              self.curr_step)
                 loss_str += '{}: {loss.val:.4g} ({loss.avg:.4g})\t'.format(
                     k, loss=recorder[k])
 
-            self.logger.info(
-                'Validation Iter: [{0}]\t'.format(self.curr_step) +
+                description = 'Validation Iter: [{0}]\t'.format(self.curr_step) + \
                 'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'.format(
-                    batch_time=btime_rec) +
+                    batch_time=btime_rec) + \
                 'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'.format(
-                    data_time=dtime_rec) + loss_str)
+                    data_time=dtime_rec) + loss_str
+                ic(description)
 
         self.model.switch_to('train')

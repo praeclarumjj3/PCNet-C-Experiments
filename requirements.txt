@@ -9,3 +9,5 @@ cvbase
 scikit-image
 pillow==6.1
 tqdm
+etaprogress
+icecream
