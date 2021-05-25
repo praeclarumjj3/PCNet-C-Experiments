@@ -3,7 +3,7 @@ import argparse
 import os
 import yaml
 import warnings
-warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore")
 
 from utils import dist_init
 from trainer import Trainer

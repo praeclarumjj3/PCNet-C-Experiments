@@ -1,6 +1,6 @@
 model:
     algo: PartialCompletionContentCGAN
-    total_iter: 1000
+    total_iter: 10000
     lr_steps: []
     lr_mults: []
     lr: 0.0001
@@ -49,12 +49,10 @@ data:
     workers: 2
 
 trainer:
-    initial_val: True
-    val_freq: 20
-    val_iter: 10
-    val_disp_start_iter: 0
-    val_disp_end_iter: 1
-    print_freq: 10
-    save_freq: 10000
+    initial_val: False
+    val_freq: 3000
+    val_iter: 30
+    print_freq: 1000
+    save_freq: 1000
     loss_record: ['hole', 'valid', 'prc', 'style', 'tv', 'dis', 'adv']
     tensorboard: False

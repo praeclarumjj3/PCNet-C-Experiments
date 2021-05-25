@@ -84,7 +84,7 @@ class PartialCompletionContentCGAN(nn.Module):
             mask_tensors = [self.modal, self.visible_mask3]
         else:
             mask_tensors = [self.visible_mask3]
-        ret_tensors = {'common_tensors': [self.rgb, output_comp, self.rgb_gt],
+        ret_tensors = {'common_tensors': [self.rgb, output_comp, self.rgb_gt, output],
                        'mask_tensors': mask_tensors}
         if ret_loss:
             loss_dict = self.criterion(self.rgb, self.visible_mask3, output, self.rgb_gt)
@@ -137,7 +137,7 @@ class PartialCompletionContentCGAN(nn.Module):
         for key, coef in self.params['lambda_dict'].items():
             value = coef * loss_dict[key]
             gen_loss += value
-
+        
         # create loss dict
         loss_dict['dis'] = dis_loss
         loss_dict['adv'] = gen_gan_loss
@@ -170,7 +170,7 @@ class PartialCompletionContentCGAN(nn.Module):
             utils.load_state(netD_path, self.netD)
 
     def save_state(self, root, Iter):
-        path = os.path.join(root, "ckpt_iter_{}.pth.tar".format(Iter))
+        path = os.path.join(root, "G_iter_{}.pth.tar".format(Iter))
         netD_path = os.path.join(root, "D_iter_{}.pth.tar".format(Iter))
 
         torch.save({

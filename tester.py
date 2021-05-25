@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 import models
 import utils
 import datasets
-from utils.visualize_utils import visualize
+from utils.visualize_utils import visualize_demo
 
 class Tester(object):
 
@@ -59,31 +59,17 @@ class Tester(object):
                 break
 
             self.model.set_input(*inputs)
-            with torch.no_grad():
-                tensor_dict, _ = self.model.forward_only()
+            tensor_dict = self.forward_only(ret_loss = False)
+            
+            images = tensor_dict['common_tensors'][2]
+            comp_masks = tensor_dict['mask_tensors'][0]
+            incomp_masks = tensor_dict['mask_tensors'][1]
+            inputs = tensor_dict['common_tensors'][0]
+            comp_img = tensor_dict['common_tensors'][2]
+            pred_obj = tensor_dict['common_tensors'][3] * comp_masks
 
-            if self.rank == 0:
-               
-                all_together.append(
-                    utils.visualize_tensor(tensor_dict,
-                    self.args.data.get('data_mean', [0,0,0]),
-                    self.args.data.get('data_std', [1,1,1])))
-                
-                all_together = torch.cat(all_together, dim=2)
-                grid = vutils.make_grid(all_together,
-                                        nrow=1,
-                                        normalize=True,
-                                        range=(0, 255),
-                                        scale_each=False)
-                cv2.imwrite("visualizations/demos/{}{}.png".format(
-                    'demo', i), grid.permute(1, 2, 0).numpy())
-            # results = self.forward_only(ret_loss = False)
-
-            # rgb_erased, comp_img, images = results['common_tensors']
-            # modals, vsb_masks = results['mask_tensors']
-
-            # if torch.mean(vsb_masks).item() != 0:
-                    # visualize_demo(i, j, images, comp_masks[:, j]+incomp_masks[:, j], incomp_masks[:, j], inputs, pred_obj, comp_img.detach(), self.args.data)
+            if torch.mean(comp_masks).item() != 0:
+                visualize_demo(i, 0, images, comp_masks, incomp_masks, inputs, pred_obj, comp_img.detach(), self.args.data)
 
             if not os.path.exists('visualizations/demos/image_{:04d}/'.format(i)):
                 os.makedirs('visualizations/demos/image_{:04d}/'.format(i))

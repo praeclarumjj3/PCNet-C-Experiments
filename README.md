@@ -20,17 +20,16 @@ This repo contains the code for my experiments on **content completion** using t
 https://github.com/praeclarumjj3/PCNet-C-Experiments.git
 cd PCNet-C-Experiments
 ```
-
-- Install pycocotools:
-   
-```shell
-pip install "git+https://github.com/cocodataset/cocoapi.git#subdirectory=PythonAPI"
-```
-
 - Install [Pytorch](https://pytorch.org/get-started/locally/) and other dependencies:
 
 ```shell
 pip3 install -r requirements.txt
+```
+
+- Install pycocotools:
+   
+```shell
+pip3 install "git+https://github.com/cocodataset/cocoapi.git#subdirectory=PythonAPI"
 ```
 
 ### Dataset Preparation
@@ -59,11 +58,7 @@ PCNet-C-Experiments
 ```
 ## Run Demos
 
-1. Download released models [here](https://drive.google.com/drive/folders/1O89ItVWucCoL_VxIbLM1XLxr9JFfyj_Y?usp=sharing) and put the folder `released` under `deocclusion`.
-
-2. Run `demos/demo_cocoa.ipynb` or `demos/demo_kins.ipynb`. There are some test examples for `demos/demo_cocoa.ipynb` in the repo, so you don't have to download the COCOA dataset if you just want to try a few samples.
-
-3. If you want to use predicted modal masks by existing instance segmentation models, you need to adjust some parameters in the demo, please refer to the answers in this [issue](https://github.com/XiaohangZhan/deocclusion/issues/14).
+Download released models [here](https://drive.google.com/drive/folders/1O89ItVWucCoL_VxIbLM1XLxr9JFfyj_Y?usp=sharing) and put the folder `released` under `deocclusion`.
 
 ## 3. Experiments
 

@@ -2,7 +2,7 @@ import os
 import cv2
 import time
 import numpy as np
-
+import matplotlib.pyplot as plt
 import torch
 import torch.optim
 import torch.distributed as dist
@@ -12,9 +12,10 @@ from torch.utils.data import DataLoader
 from etaprogress.progress import ProgressBar
 from colorama import init
 from colorama import Fore, Style
-from utils.visualize_utils import visualize_tensor, visualize_run
+from utils.visualize_utils import visualize_run
 from icecream import ic
 
+import sys
 import models
 import utils
 import datasets
@@ -32,12 +33,10 @@ class Trainer(object):
 
         if self.rank == 0:
             # mkdir path
-            if not os.path.exists('visualizations/runs/train'):
-                os.makedirs('visualizations/runs/train')
-            if not os.path.exists('visualizations/runs/val'):
-                os.makedirs('visualizations/runs/val')
-            if not os.path.exists('{}/checkpoints'.format(args.exp_path)):
-                os.makedirs('{}/checkpoints'.format(args.exp_path))
+            if not os.path.exists('visualizations/runs/'):
+                os.makedirs('visualizations/runs/')
+            if not os.path.exists('{}/saved_checkpoints'.format(args.exp_path)):
+                os.makedirs('{}/saved_checkpoints'.format(args.exp_path))
 
         # create model
         self.model = models.__dict__[args.model['algo']](
@@ -48,7 +47,7 @@ class Trainer(object):
             "load_iter and load_pretrain are exclusive."
 
         if args.load_iter is not None:
-            self.model.load_state("{}/checkpoints".format(args.exp_path),
+            self.model.load_state("{}/saved_checkpoints".format(args.exp_path),
                                   args.load_iter, args.resume)
             self.start_iter = args.load_iter
         else:
@@ -106,6 +105,32 @@ class Trainer(object):
 
         # train
         self.train()
+    
+    def plot_iter_loss(self, k, iter_l1_loss, iter_adv_g_loss, iter_adv_d_loss):
+        plt.close()
+        plt.plot(list(range(1, len(iter_l1_loss) + 1)), iter_l1_loss, label = "Rec Loss")
+        plt.plot(list(range(1, len(iter_adv_g_loss) + 1)), iter_adv_g_loss, label = "Adv G Loss")
+        plt.plot(list(range(1, len(iter_adv_d_loss) + 1)), iter_adv_d_loss, label = "Adv D Loss")
+        if not os.path.exists('visualizations/losses/{}'.format(k)):
+                os.makedirs('visualizations/losses/{}'.format(k))
+        plt.legend()
+        plt.title("Training Loss")
+        plt.savefig('visualizations/losses/{}/train_loss.png'.format(k))
+        plt.close()
+        plt.plot(list(range(1, len(iter_l1_loss) + 1)), iter_l1_loss, label = "Rec Loss")
+        plt.legend()
+        plt.title("Training Loss")
+        plt.savefig('visualizations/losses/{}/train_rec_loss.png'.format(k))
+        plt.close()
+        plt.plot(list(range(1, len(iter_adv_g_loss) + 1)), iter_adv_g_loss, label = "Adv G Loss",  color = "green")
+        plt.legend()
+        plt.title("Training Loss")
+        plt.savefig('visualizations/losses/{}/train_adv_g_loss.png'.format(k))
+        plt.close()
+        plt.plot(list(range(1, len(iter_adv_d_loss) + 1)), iter_adv_d_loss, label = "Adv D Loss",  color = "red")
+        plt.legend()
+        plt.title("Training Loss")
+        plt.savefig('visualizations/losses/{}/train_adv_d_loss.png'.format(k))
 
     def train(self):
 
@@ -118,6 +143,16 @@ class Trainer(object):
         self.model.switch_to('train')
 
         end = time.time()
+
+        if self.rank == 0:
+            total = self.args.model['total_iter']
+            bar = ProgressBar(total, max_width=80)
+        
+        if self.rank == 0:
+            iter_l1_loss = []
+            iter_adv_g_loss = []
+            iter_adv_d_loss = []
+
         for i, inputs in enumerate(self.train_loader):
             self.curr_step = self.start_iter + i
             self.lr_scheduler.step(self.curr_step)
@@ -137,6 +172,25 @@ class Trainer(object):
 
             self.curr_step += 1
 
+            if self.rank == 0:
+                bar.numerator = self.curr_step 
+                print(bar, end='\r')
+
+                    
+            if self.rank == 0:
+                for key, coef in self.args.model['lambda_dict'].items():
+                    loss_dict[key] = coef * loss_dict[key]
+                l1_loss = loss_dict['valid'] + loss_dict['hole'] + loss_dict['tv'] + loss_dict['prc'] + loss_dict['style']
+                iter_l1_loss.append(l1_loss.item())
+
+                advg_loss = loss_dict['adv']
+                iter_adv_g_loss.append(advg_loss.item())
+
+                advd_loss = loss_dict['dis']
+                iter_adv_d_loss.append(advd_loss.item())
+
+                sys.stdout.flush()
+            
             # logging
             if self.rank == 0 and self.curr_step % self.args.trainer[
                     'print_freq'] == 0:
@@ -146,28 +200,26 @@ class Trainer(object):
                     loss_str += '{}: {loss.val:.4g} ({loss.avg:.4g})\t'.format(
                         k, loss=recorder[k])
                 
-                    description = 'Iter: [{0}/{1}]\t'.format(self.curr_step,
-                                               len(self.train_loader)) + \
-                    'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'.format(
-                        batch_time=btime_rec) + \
-                    'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'.format(
-                        data_time=dtime_rec) + loss_str + \
-                    'lr {lr:.2g}'.format(lr=curr_lr)
-                    ic(description)
-                    
-
+                description = 'Training Iter: [{0}/{1}], '.format(self.curr_step,
+                                           len(self.train_loader)) + \
+                                               'Rec Loss: {}, Adv G Loss: {}, Adv D Loss: {}'.format(l1_loss, advg_loss, advd_loss)
+                ic(description)
+                k = self.curr_step // self.args.trainer['print_freq']
+                self.plot_iter_loss(k, iter_l1_loss, iter_adv_g_loss, iter_adv_d_loss) 
+            
             # save
             if (self.rank == 0 and
                 (self.curr_step % self.args.trainer['save_freq'] == 0 or
                  self.curr_step == self.args.model['total_iter'])):
                 self.model.save_state(
-                    "{}/checkpoints".format(self.args.exp_path),
+                    "{}/saved_checkpoints".format(self.args.exp_path),
                     self.curr_step)
+                print('### Model Saved at Iteration {}'.format(self.curr_step))
 
             # validate
             if (self.curr_step % self.args.trainer['val_freq'] == 0 or
                 self.curr_step == self.args.model['total_iter']):
-                self.validate('on_val')
+                self.validate('val')
             
 
     def validate(self, phase):
@@ -180,7 +232,6 @@ class Trainer(object):
         self.model.switch_to('eval')
 
         end = time.time()
-        all_together = []
         for i, inputs in enumerate(self.val_loader):
             if ('val_iter' in self.args.trainer and
                     self.args.trainer['val_iter'] != -1 and
@@ -196,38 +247,25 @@ class Trainer(object):
             btime_rec.update(time.time() - end)
             end = time.time()
 
-            # tb visualize
-            if self.rank == 0:
-                disp_start = max(self.args.trainer['val_disp_start_iter'], 0)
-                disp_end = min(self.args.trainer['val_disp_end_iter'], len(self.val_loader))
-                if (i >= disp_start and i < disp_end):
-                    all_together.append(
-                        utils.visualize_tensor(tensor_dict,
-                        self.args.data.get('data_mean', [0,0,0]),
-                        self.args.data.get('data_std', [1,1,1])))
-                if (i == disp_end - 1 and disp_end > disp_start):
-                    all_together = torch.cat(all_together, dim=2)
-                    grid = vutils.make_grid(all_together,
-                                            nrow=1,
-                                            normalize=True,
-                                            range=(0, 255),
-                                            scale_each=False)
-                    cv2.imwrite("visualizations/runs/val/{}_{}.png".format(
-                        phase, self.curr_step),
-                        grid.permute(1, 2, 0).numpy())
+            # logging
+            if self.rank == 0 and (i+1) % self.args.trainer['val_iter'] == 0:
+                loss_str = ""
+                for k in recorder.keys():
+                    loss_str += '{}: {loss.val:.4g} ({loss.avg:.4g})\t'.format(
+                        k, loss=recorder[k])
 
-        # logging
-        if self.rank == 0:
-            loss_str = ""
-            for k in recorder.keys():
-                loss_str += '{}: {loss.val:.4g} ({loss.avg:.4g})\t'.format(
-                    k, loss=recorder[k])
-
-                description = 'Validation Iter: [{0}]\t'.format(self.curr_step) + \
-                'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'.format(
-                    batch_time=btime_rec) + \
-                'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'.format(
-                    data_time=dtime_rec) + loss_str
+                description = 'Validation Iter: [{0}]'.format(self.curr_step)
                 ic(description)
+                ic(loss_dict)
+                k = self.curr_step // self.args.trainer['val_freq']
+                
+                incomp_masks = tensor_dict['mask_tensors'][0]
+                comp_masks = tensor_dict['mask_tensors'][1]
 
+                images = tensor_dict['common_tensors'][2]
+                inputs = tensor_dict['common_tensors'][0]
+                comp_img = tensor_dict['common_tensors'][1]
+                pred_img = tensor_dict['common_tensors'][3]
+
+                visualize_run(k, phase, images, comp_masks, incomp_masks, inputs, pred_img.detach(), comp_img.detach(), self.args.data)
         self.model.switch_to('train')
