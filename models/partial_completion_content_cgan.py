@@ -159,7 +159,7 @@ class PartialCompletionContentCGAN(nn.Module):
         utils.load_state(path, self.model)
 
     def load_state(self, root, Iter, resume=False):
-        path = os.path.join(root, "ckpt_iter_{}.pth.tar".format(Iter))
+        path = os.path.join(root, "G_iter_{}.pth.tar".format(Iter))
         netD_path = os.path.join(root, "D_iter_{}.pth.tar".format(Iter))
 
         if resume:

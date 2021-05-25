@@ -12,6 +12,9 @@ from torch.utils.data import DataLoader
 from etaprogress.progress import ProgressBar
 from colorama import init
 from colorama import Fore, Style
+init(autoreset=True)
+import warnings
+warnings.filterwarnings("ignore")
 from utils.visualize_utils import visualize_run
 from icecream import ic
 
@@ -260,7 +263,7 @@ class Trainer(object):
                 k = self.curr_step // self.args.trainer['val_freq']
                 
                 incomp_masks = tensor_dict['mask_tensors'][0]
-                comp_masks = tensor_dict['mask_tensors'][1]
+                comp_masks = 1 - tensor_dict['mask_tensors'][1]
 
                 images = tensor_dict['common_tensors'][2]
                 inputs = tensor_dict['common_tensors'][0]

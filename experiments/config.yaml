@@ -56,3 +56,8 @@ trainer:
     save_freq: 1000
     loss_record: ['hole', 'valid', 'prc', 'style', 'tv', 'dis', 'adv']
     tensorboard: False
+
+demo:
+    trainval_dataset: 'DemoPartialCompContentDataset'
+    batch_size: 1
+    num: 100

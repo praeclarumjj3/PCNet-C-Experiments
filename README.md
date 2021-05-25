@@ -56,14 +56,10 @@ PCNet-C-Experiments
 │   │   ├── train2014
 │   │   ├── val2014
 ```
-## Run Demos
-
-Download released models [here](https://drive.google.com/drive/folders/1O89ItVWucCoL_VxIbLM1XLxr9JFfyj_Y?usp=sharing) and put the folder `released` under `deocclusion`.
 
 ## 3. Experiments
 
 ### Training
-
 
 1. Download the pre-trained image inpainting model using partial convolution [here](https://github.com/naoto0804/pytorch-inpainting-with-partial-conv/blob/master/README.md) to `pretrains/partialconv.pth`
 
@@ -79,13 +75,22 @@ Download released models [here](https://drive.google.com/drive/folders/1O89ItVWu
     sh experiments/train.sh # you may have to set --nproc_per_node=#YOUR_GPUS
     ```
 
-## Evaluate
+### Demo
 
-* Execute:
+Run the following command:
+```shell
+sh experiments/demo.sh
+```
 
-    ```shell
-    sh tools/test_cocoa.sh
-    ```
+#### Using Pretrained Model
+- Download released model from [here](https://drive.google.com/drive/folders/1O89ItVWucCoL_VxIbLM1XLxr9JFfyj_Y?usp=sharing), **rename it G_0000.pth.tar** to and put it the folder `saved_checkpoints` under `experiments`.
+
+```shell
+gdown https://drive.google.com/uc?id=1MFK3mvSsB_T6IhmunPHi0EUWnDv-nDTa
+```
+
+- Set the `--load_iter` parameter equal to `0000` in [demo.sh](experiments/demo.sh).
+
 
 ## Acknowledgement
 

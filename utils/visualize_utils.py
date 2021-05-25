@@ -80,7 +80,7 @@ def visualize_run(i, phase, img, amodal_mask, erased_modal_mask, erased_img, pre
     ax5.set_title("Completed Object")
     ax5.axis('off')
 
-    f.savefig('visualizations/runs/' + phase + '/run' + str(i) + '.jpg')
+    f.savefig('visualizations/runs/run' + str(i) + '.jpg')
     plt.close(f)
 
 def visualize_demo(i, j, img, amodal_mask, erased_modal_mask, erased_img, pred_img, comp_img, args):
@@ -93,7 +93,7 @@ def visualize_demo(i, j, img, amodal_mask, erased_modal_mask, erased_img, pred_i
     amodal_mask = amodal_mask.permute(1, 2, 0).numpy()
     amodal_mask = np.uint8(amodal_mask)
 
-    erased_modal_mask = torch.stack(erased_modal_mask[0].cpu() * torch.tensor(255.), dim=0).squeeze(1)
+    erased_modal_mask = torch.stack([erased_modal_mask[0].cpu() * torch.tensor(255.)]*3, dim=0).squeeze(1)
     erased_modal_mask = erased_modal_mask.permute(1, 2, 0).numpy()
     erased_modal_mask = np.uint8(erased_modal_mask)
 
