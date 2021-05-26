@@ -167,7 +167,6 @@ class PartialCompletionContentCGAN(nn.Module):
             utils.load_state(netD_path, self.netD, self.optimD)
         else:
             utils.load_state(path, self.model)
-            utils.load_state(netD_path, self.netD)
 
     def save_state(self, root, Iter):
         path = os.path.join(root, "G_iter_{}.pth.tar".format(Iter))
